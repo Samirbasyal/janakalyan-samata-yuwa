@@ -1,0 +1,76 @@
+import { betterAuth } from "better-auth";
+import { Pool } from "pg";
+import { sendMail } from "@/lib/mail";
+
+const runtimeUrl =
+  process.env.BETTER_AUTH_URL ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
+
+export const auth = betterAuth({
+  database: new Pool({ connectionString: process.env.DATABASE_URL, max: 5 }),
+  baseURL: runtimeUrl,
+  // Allow every local origin (localhost/127.0.0.1 on common ports) plus the
+  // configured URL, so opening the site from any local port never fails.
+  trustedOrigins: [
+    runtimeUrl,
+    ...["3000", "3001", "3002", "3003", "3004", "3005"].flatMap((port) => [
+      `http://localhost:${port}`,
+      `http://127.0.0.1:${port}`,
+      `http://[::1]:${port}`,
+    ]),
+  ],
+  secret: process.env.BETTER_AUTH_SECRET,
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendMail({
+        to: user.email,
+        subject: "Reset your password",
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>Reset your password</h2><p>We received a request to reset your password.</p><p><a href="${url}" style="background:#123f52;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none">Reset password</a></p><p>This link expires soon. If you did not request this, you can ignore this email.</p></div>`,
+      });
+    },
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url, token }) => {
+      await sendMail({
+        to: user.email,
+        subject: "Verify your email — Janakalyan Samata Yuwa Club",
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>Verify your email</h2><p>Click below to verify your email address for your club account.</p><p><a href="${url}" style="background:#123f52;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none">Verify email</a></p><p>Or copy this link: ${url}</p><p>If you did not create this account, you can ignore this email.</p></div>`,
+      });
+      // Dev fallback logs inside sendMail when no provider is configured.
+    },
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: "viewer",
+        input: false,
+      },
+    },
+  },
+  socialProviders:
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : undefined,
+  trustedOrigins: [
+    runtimeUrl,
+    process.env.V0_RUNTIME_URL,
+    process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
+  ].filter(Boolean) as string[],
+  advanced: {
+    defaultCookieAttributes:
+      process.env.NODE_ENV === "development"
+        ? { sameSite: "none", secure: true }
+        : undefined,
+  },
+});

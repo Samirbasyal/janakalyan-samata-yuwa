@@ -1,0 +1,10 @@
+import pg from "pg";
+const client = new pg.Client({ connectionString: "postgres://postgres:postgres@localhost:5432/postgres" });
+await client.connect();
+const r = await client.query('SELECT email, role, "emailVerified" FROM "user"');
+console.log("USERS:", JSON.stringify(r.rows));
+const m = await client.query("SELECT count(*)::int AS c FROM club_members");
+console.log("members:", m.rows[0].c);
+const apps = await client.query("SELECT count(*)::int AS c FROM club_applications");
+console.log("applications:", apps.rows[0].c);
+await client.end();
