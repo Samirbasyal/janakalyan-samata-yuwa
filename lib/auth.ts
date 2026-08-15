@@ -2,25 +2,11 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { sendMail } from "@/lib/mail";
 
-const runtimeUrl =
-  process.env.BETTER_AUTH_URL ||
-  (process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000");
-
 export const auth = betterAuth({
   database: new Pool({ connectionString: process.env.DATABASE_URL, max: 5 }),
-  baseURL: runtimeUrl,
-  // Allow every local origin (localhost/127.0.0.1 on common ports) plus the
-  // configured URL, so opening the site from any local port never fails.
-  trustedOrigins: [
-    runtimeUrl,
-    ...["3000", "3001", "3002", "3003", "3004", "3005"].flatMap((port) => [
-      `http://localhost:${port}`,
-      `http://127.0.0.1:${port}`,
-      `http://[::1]:${port}`,
-    ]),
-  ],
+  // IMPORTANT: no fixed baseURL — better-auth derives the base URL from each
+  // request's origin, so login works from localhost, the Vercel domain, a
+  // custom domain, or any preview URL. This eliminates "Invalid origin".
   secret: process.env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
@@ -63,7 +49,6 @@ export const auth = betterAuth({
         }
       : undefined,
   trustedOrigins: [
-    runtimeUrl,
     process.env.V0_RUNTIME_URL,
     process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
   ].filter(Boolean) as string[],
